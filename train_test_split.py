@@ -8,7 +8,9 @@ def split_records_by_delta(beg_date_str,end_date_str,file_str):
     beg_date = dt.strptime(beg_date_str,time_format)
     end_date = dt.strptime(end_date_str,time_format)
     fout = open(file_str,'w')
-    with open('/home/xuejiewu/workspace/python/ali_rs/resource/user') as fin:
+    parent_dir = os.path.abspath('..')
+    fin_str = '%s/resource/user'%(parent_dir)
+    with open(fin_str)as fin:
         for line in fin:
             #user_id,item_id,behavior_type,postion,cate,time
             cols = line.strip().split(',')
@@ -21,7 +23,9 @@ def split_records_by_date(date_str,file_str,only_buy = False):
     time_format = '%Y-%m-%d'
     base_date = dt.strptime(date_str,time_format)
     fout = open(file_str,'w')
-    with open ('/home/xuejiewu/workspace/python/ali_rs/resource/user') as fin:
+    parent_dir = os.path.abspath('..')
+    fin_str = '%s/resource/user'%(parent_dir)
+    with open (fin_str)as fin:
         for line in fin:
             cols = line.strip().split(',')
             cur_str = cols[-1].split(' ')[0]
@@ -35,7 +39,7 @@ def split_records_by_date(date_str,file_str,only_buy = False):
     fout.close()
 if __name__ == '__main__':
     parent_dir = os.path.abspath('..')
-    split_date = dt(2014,12,3)
+    split_date = dt(2014,12,17)
     td = timedelta(1)
     next_date = split_date+td
     fout1 = '%s/data/train_test/data_1118_%s'%(parent_dir,split_date.strftime('%m%d'))

@@ -1,7 +1,8 @@
 #-*- coding:utf-8 -*-
 import os
 import datetime
-from fim import pfgrowth
+import sys
+#from fim import pfgrowth
 """
 交易集构建：
 userid,itemid1#itemid2#...(其购买过的item)
@@ -10,7 +11,7 @@ fout_str:tras_[from_date]_[to_date] 文件名
 """
 def build_trans_data(fin_str,fout_str):
     buy_dict = dict()
-    while open(fin_str) as fin:
+    with open(fin_str) as fin:
         for line in fin:
             #user_id,item_id,behavior_type,postion,cate,time
             cols = line.strip().split(',')
@@ -32,7 +33,8 @@ def iter_trans_data(fin_str):
 """
 计算在交易集trans中的item的一个分布情况
 """
-def compute_item_distribution_in_trans(fin_str)
+'''
+def compute_item_distribution_in_trans(fin_str):
     item_distribution_dict = dict()
     for fre_item in fpgrowth(iter_trans_data(fin_str),supp=0,zmax = 1,report='[S'):
         print fre_item[0][0],fre_item[1][0]
@@ -41,6 +43,29 @@ def compute_item_distribution_in_trans(fin_str)
         item_distribution_dict[key] +=1
     for key in item_distribution_dict:
         print >> sys.out,'[%d,%d) itemnums is %d' %(key*10 , (key+1) *10, item_distribution_dict[key])
+'''
+"""
+每天的购买记录 与 resource/item 求交集
+fbuy_str:某一天的购买记录
+fitem_str:resource/item 给定的item集合
+fout_str:过滤之后的输出文件data_xxxx_buy_filter
+"""
+def filter_buy_records_by_selected_item(fbuy_str,fitem_str,fout_str):
+    item_dict = dict()
+    with open(fitem_str) as fin:
+        for line in fin:
+            #itemid,position,cate
+            cols = line.strip().split(',')
+            if cols[0] not in item_dict:
+                item_dict[cols[0]] = 0
+    fout = open(fout_str,'w')
+    with open(fbuy_str) as fin:
+        for line in fin:
+            #user_id,item_id,behavior_type,postion,cate,time
+            cols = line.strip().split(',')
+            if cols[1] in item_dict:
+                print >> fout,line.strip()
+    fout.close()
 
 """
 fbuy_str:某一天的购买记录
@@ -65,7 +90,9 @@ def compute_purchase_compose(fbuy_str,fbefore_str,fout_str,is_append=False):
             pair = "%s#%s"%(cols[0],cols[1])
             if pair in buy_dict and int(cols[2]) > buy_dict[pair]:
                 buy_dict[pair] = int(cols[2])
-    print len(buy_dict)
+    #fbuy_str的为data_xxx_buy
+    date = fbuy_str.strip().split('_')[-2]
+    print >> sys.out,"去重后%s的购买对:%d" %(date,len(buy_dict))
     #统计各种行为的总次数
     num_dict=dict()
     for val in buy_dict.itervalues():
@@ -76,15 +103,20 @@ def compute_purchase_compose(fbuy_str,fbefore_str,fout_str,is_append=False):
         fout = open(fout_str,'a')
     else:
         fout = open(fout_str,'w')
-    #fbuy_str的为data_xxx_buy
-    date = fbuy_str.strip().split('_')[-2]
     num_list = ["%s:%s"%(k,v) for k,v in num_dict.iteritems()]
     print >> fout,"%s,%s"%(date,','.join(num_list))
     fout.close()
 if __name__=='__main__':
     parent_dir = os.path.abspath('..')
-    fout= "%s/data/candidate/purchase_compose"%(parent_dir)
-    split_date = datetime.datetime(2014,12,3)
+    split_date = datetime.datetime(2014,12,17)
     td = datetime.timedelta(1)
     next_date = split_date+td
-    compute_purchase_compose('%s/data/train_test/data_%s_buy'%(parent_dir,next_date.strftime('%m%d')),'%s/data/train_test/data_1118_%s'%(parent_dir,split_date.strftime('%m%d')),fout,True)
+    is_filter = True
+    if is_filter:
+        fbuy_str = "%s/data/train_test/data_%s_buy_filter"%(parent_dir,next_date.strftime('%m%d'))
+        fout= "%s/data/candidate/purchase_compose_filter"%(parent_dir)
+        filter_buy_records_by_selected_item("%s/data/train_test/data_%s_buy"%(parent_dir,next_date.strftime('%m%d')),"%s/resource/item"%(parent_dir),fbuy_str)
+    else:
+        fbuy_str = "%s/data/train_test/data_%s_buy"%(parent_dir,next_date.strftime('%m%d'))
+        fout= "%s/data/candidate/purchase_compose"%(parent_dir)
+    compute_purchase_compose(fbuy_str,'%s/data/train_test/data_1118_%s'%(parent_dir,split_date.strftime('%m%d')),fout,True)
