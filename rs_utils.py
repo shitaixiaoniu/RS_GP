@@ -5,6 +5,7 @@ FLAG_TRAIN_TEST = 'train_test'
 FLAG_AR = 'ar'
 FLAG_CANDIDATE='candidate'
 FLAG_CF = 'cf'
+FLAG_RULE = 'rule'
 def evaluate_res(fres_str,fbuy_str,is_item):
     res_dict = dict()
     res_num = 0
