@@ -77,7 +77,7 @@ def merge_user_purchase_cate(fin_str,fout_str):
 
 if __name__ == '__main__':
     parent_dir = utils.get_data_dir(utils.FLAG_TRAIN_TEST)
-    begin_date = dt(2014,11,18)
+    begin_date = dt(2014,12,11)
     split_date = dt(2014,12,17)
     td = timedelta(1)
     next_date = split_date+td
@@ -87,10 +87,10 @@ if __name__ == '__main__':
     fout_data_delta = '%s/data_%s_%s' %(parent_dir,begin_date.strftime('%m%d'),split_date.strftime('%m%d'))
     fout_data_by_day= '%s/data_%s' %(parent_dir,next_date.strftime('%m%d'))
     fout_data_buy_by_day= '%s/data_buy_%s' %(parent_dir,next_date.strftime('%m%d'))
-    filter_records_by_selected_item(fraw_str,fitem_str,fout1)
+    #filter_records_by_selected_item(fraw_str,fitem_str,fout1)
     #compute_items_users_num(fout1)
     split_records_by_delta(fout1,'%s 00'%(begin_date.strftime('%Y-%m-%d')),'%s 23'%(split_date.strftime('%Y-%m-%d')),fout_data_delta)
-    split_records_by_date(fout1,next_date.strftime('%Y-%m-%d'),fout_data_by_day)
+    #split_records_by_date(fout1,next_date.strftime('%Y-%m-%d'),fout_data_by_day)
     
-    split_records_by_date(fout1,next_date.strftime('%Y-%m-%d'),fout_data_buy_by_day,True)
+    #split_records_by_date(fout1,next_date.strftime('%Y-%m-%d'),fout_data_buy_by_day,only_buy=True)
 
