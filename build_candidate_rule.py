@@ -14,7 +14,7 @@ class BCR:
     fitem_str:item
     
     """
-    def candidate_items_by_recent_cate(self,fitem_str,fout_str,splite_date):
+    def candidate_items_by_recent_cate(self,fitem_str,fout_str):
         cate_dict = dict()
         with open(fitem_str) as fin:
             for line in fin:
@@ -32,8 +32,8 @@ class BCR:
             if i%1000 == 0:
                 print i
             candidate_item_set = set()
-            #过滤用户,分数低于阈值的过滤
             attr = self.user_score_dict[user]
+            #过滤用户,分数低于阈值的过滤
             if attr.get_score() <= min_score:
                 continue
             for cate in attr.get_all_cates():
@@ -88,20 +88,20 @@ def item2label(item_labels_dict):
     
 def main():
     begin_date = datetime.datetime(2014,11,18)
-    end_date = datetime.datetime(2014,12,17)
+    end_date = datetime.datetime(2014,12,16)
     split_td = datetime.timedelta(6)
-    #splite_date = end_date - split_td
-    splite_date= datetime.datetime(2014,11,18)
+    splite_date = end_date - split_td
+    #splite_date= datetime.datetime(2014,11,18)
     data_dir = utils.get_data_dir(utils.FLAG_TRAIN_TEST) 
     cf_dir = utils.get_data_dir(utils.FLAG_CF)
     rule_dir = utils.get_data_dir(utils.FLAG_RULE)
     fraw_str = '%s/data_%s_%s' %(data_dir,begin_date.strftime('%m%d'),end_date.strftime('%m%d'))  
     fitem_str = '%s/item' %(data_dir)
     fres_cate_str = '%s/candidate_rule_cate_%s_%s' %(rule_dir,splite_date.strftime('%m%d'),end_date.strftime('%m%d'))
-    buy_date = datetime.datetime(2014,12,18)
+    buy_date = datetime.datetime(2014,12,17)
     fbuy_str = '%s/data_buy_%s'%(data_dir,buy_date.strftime('%m%d'))
     bcr = BCR(fraw_str,splite_date)
-    bcr.candidate_items_by_recent_cate(fitem_str,fres_cate_str,splite_date)
+    bcr.candidate_items_by_recent_cate(fitem_str,fres_cate_str)
     utils.evaluate_res_except_history(fres_cate_str,fbuy_str,True,fraw_str)
     
 if __name__ == '__main__':

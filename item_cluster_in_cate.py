@@ -12,7 +12,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import MiniBatchKMeans 
 from sklearn import metrics
 begin_date = datetime.datetime(2014,11,18)
-end_date = datetime.datetime(2014,12,17)
+end_date = datetime.datetime(2014,12,16)
 td = datetime.timedelta(1)
 split_td = datetime.timedelta(6)
 splite_date = end_date - split_td

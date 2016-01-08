@@ -9,6 +9,12 @@ FLAG_CANDIDATE='candidate'
 FLAG_CF = 'cf'
 FLAG_RULE = 'rule'
 FLAG_STAT = 'stat'
+DATE_BEGIN = datetime.datetime(2014,11,18)
+DATE_END= datetime.datetime(2014,12,17)
+td = datetime.timedelta(1)
+split_td = datetime.timedelta(6)
+DATE_SPLIT= DATE_END - split_td
+DATE_NEXT = DATE_END+td
 class UserCateAttr:
     def __init__(self):
         self.cate_dict = dict()
@@ -29,6 +35,8 @@ class UserCateAttr:
             score += self.get_cate_score(cate)
         return score
     def get_cate_prob(self,cate):
+        if cate not in self.cate_dict:
+            return 0.0
         total_score = self.get_score()
         cate_prob= self.get_cate_score(cate)/float(total_score)
         return cate_prob 
@@ -39,7 +47,11 @@ class UserCateAttr:
             return None
         return self.cate_dict[cate]
     def get_item_score(self,item):
+        if item not in self.item_dict:
+            return 0
         behavior = np.array(self.item_dict[item])
+        #behavior 大于5的限定为5
+        #behavior = np.where(behavior>5,5,behavior)
         weight = np.array([1,2,3,4])
         score = np.sum(behavior*weight)
         return score
@@ -62,6 +74,16 @@ def init_base_data(fin_str,splite_date):
     for ix,user in enumerate(user_list):
         user_ix_dict[user] = ix
     return user_score_dict,user_history_dict,user_list,user_ix_dict
+def init_item_data(fitem_str):
+    cate_dict = dict()
+    with open(fitem_str) as fin:
+        for line in fin:
+            #item,pos,cate
+            cols = line.strip().split(',')
+            cate_dict.setdefault(cols[-1],set())
+            cate_dict[cols[-1]].add(cols[0])
+    return cate_dict
+            
 
 def evaluate_res(fres_str,fbuy_str,is_item):
     res_dict = dict()

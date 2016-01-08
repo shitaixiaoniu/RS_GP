@@ -77,8 +77,8 @@ def merge_user_purchase_cate(fin_str,fout_str):
 
 if __name__ == '__main__':
     parent_dir = utils.get_data_dir(utils.FLAG_TRAIN_TEST)
-    begin_date = dt(2014,12,11)
-    split_date = dt(2014,12,17)
+    begin_date = dt(2014,12,18)
+    split_date = dt(2014,12,16)
     td = timedelta(1)
     next_date = split_date+td
     fout1 = '%s/user_behavior_filter'%(parent_dir)
