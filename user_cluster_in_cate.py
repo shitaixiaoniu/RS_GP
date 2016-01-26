@@ -3,6 +3,7 @@ import sys
 import datetime
 import numpy as np
 import rs_utils as utils
+import data_model as dm
 import os
 from scipy import sparse
 from scipy import io
@@ -13,21 +14,38 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import NMF
 from sklearn.decomposition import TruncatedSVD
 class UCIC:
-    def __init__(self,fin_str,splite_date):
-        self.user_score_dict,self.user_history_dict,self.__user_ix_list,self.__user_ix_dict = utils.init_base_data(fin_str,splite_date)
+    def __init__(self,uh_data_model):
+        self.user_score_dict= uh_data_model.user_score_dict
+        self.user_history_dict = uh_data_model.user_history_dict
+        self.__user_ix_dict = uh_data_model.user_ix_dict
+        self.__user_ix_list = uh_data_model.user_list
         cate_set = set()
+        #pos
+        pos_set = set()
         for user in self.user_score_dict:
             attr = self.user_score_dict[user]
             cate_set |= set(attr.get_all_cates())
+            #pos
+            if attr.get_all_pos() is None:
+                continue
+            pos_set |= set(attr.get_all_pos())
+            #pos end
+
         cate_ix_list = list(cate_set)
         self.__cate_ix_dict = dict()
-        for ix,user in enumerate(cate_ix_list):
-            self.__cate_ix_dict[user]=ix
+        for ix,cate in enumerate(cate_ix_list):
+            self.__cate_ix_dict[cate]=ix
+        #pos
+        pos_ix_list = list(pos_set)
+        self.__pos_ix_dict = dict()
+        for ix,pos in enumerate(pos_ix_list):
+            self.__pos_ix_dict[pos] = ix
+        #pos end
             
     def __extract_user_feature(self):
         #特征是对每个类别的分数
         print 'extract'
-        feature_num = len(self.__cate_ix_dict)
+        feature_num = len(self.__cate_ix_dict) + len(self.__pos_ix_dict)
         user_feature_matrix = sparse.lil_matrix((len(self.__user_ix_list),feature_num))
         for user in self.user_score_dict:
             attr = self.user_score_dict[user]
@@ -35,6 +53,13 @@ class UCIC:
             for cate in attr.get_all_cates():
                 c_ix = self.__cate_ix_dict[cate]
                 user_feature_matrix[u_ix,c_ix] = attr.get_cate_score(cate)
+            #pos
+            if attr.get_all_pos() is None:
+                continue
+            for pos in attr.get_all_pos():
+                p_ix = self.__pos_ix_dict[pos]+ len(self.__cate_ix_dict)
+                user_feature_matrix[u_ix,p_ix] = 1
+            #pos end
         print user_feature_matrix.shape
         print user_feature_matrix.nnz
         return user_feature_matrix 
@@ -51,10 +76,27 @@ class UCIC:
         for user in self.__user_ix_dict:
             user_label_dict[user] = labels[self.__user_ix_dict[user]]
         return user_label_dict
-    def neighbor_user(self,K):
+    def cluster_user_with_pos(self):
+        user_pos_dict = dict()
+        i = 0
+        for user in self.user_score_dict:
+            attr = self.user_score_dict[user]
+            #pos = attr.get_most_frequent_pos()
+            pos = attr.get_last_pos()
+            if pos  is not None:
+                i += 1
+                user_pos_dict[user] = pos 
+        print 'total user : %d' %(len(self.user_score_dict))
+        print 'has pos user: %d' %(i)
+        return user_pos_dict
+    def neighbor_user(self,K,fout_str = None):
         user_feature_matrix = self.__extract_user_feature()
+        """
+        user_feature_matrix = user_feature_matrix.tocsr()
+        user_feature_matrix= MaxAbsScaler().fit_transform(user_feature_matrix)
+        """
         #user_feature_matrix = self.__nmf(user_feature_matrix)
-        user_feature_matrix = self.__svd(user_feature_matrix)
+        #user_feature_matrix = self.__svd(user_feature_matrix)
         #user_feature_matrix = self.__remove_mean_by_row(user_feature_matrix)
         #nbrs = NearestNeighbors(K,n_jobs = -1).fit(user_feature_matrix)
         nbrs = NearestNeighbors(K,n_jobs = -1,algorithm="brute", metric="cosine").fit(user_feature_matrix)
@@ -68,6 +110,11 @@ class UCIC:
             nbrs_ix = indices[u_ix]
             nbrs_list = [self.__user_ix_list[i] for i in nbrs_ix]
             user_nbrs_dict[user]= nbrs_list
+        if fout_str is not None:
+            fout = open(fout_str,'w')
+            for user in user_nbrs_dict:
+                print >> fout,'%s,%s' %(user,'#'.join(user_nbrs_dict[user]))
+            fout.close()
         return user_nbrs_dict
     def __remove_mean_by_row(self,user_feature_matrix):
         for r_ix in range(user_feature_matrix.shape[0]):
@@ -103,10 +150,13 @@ class UCIC:
 
 
 def candidate_with_user_cluster(fraw_str,splite_date,fitem_str,fout_str):
-    cate_dict = utils.init_item_data(fitem_str)
-    ucic = UCIC(fraw_str,splite_date)
-    user_label_dict = ucic.cluster_user()
+    user_data_model = dm.UserHistoryDataModel(fraw_str,splite_date)
+    cate_dict  = dm.CateItemDataModel(fitem_str).cate_dict
+    ucic = UCIC(user_data_model)
+    #user_label_dict = ucic.cluster_user()
+    user_label_dict = ucic.cluster_user_with_pos()
     label_user_dict = user2label(user_label_dict)
+    print 'pos num : %d' %(len(label_user_dict))
     fout = open(fout_str,'w')
     user_history_dict = ucic.user_history_dict
     i =0
@@ -125,8 +175,9 @@ def candidate_with_user_cluster(fraw_str,splite_date,fitem_str,fout_str):
     fout.close()
         
 def candidate_with_user_nbr_history(fraw_str,splite_date,fitem_str,fout_str):
-    cate_dict = utils.init_item_data(fitem_str)
-    ucic = UCIC(fraw_str,splite_date)
+    user_data_model = dm.UserHistoryDataModel(fraw_str,splite_date)
+    cate_dict  = dm.CateItemDataModel(fitem_str).cate_dict
+    ucic = UCIC(user_data_model)
     user_nbrs_dict = ucic.neighbor_user(500)
     fout = open(fout_str,'w')
     user_history_dict = ucic.user_history_dict
@@ -147,9 +198,10 @@ def remove_item_with_user_history_cate(attr,candidate_item_set,cate_dict):
     
 
 def candiate_with_user_nbr_cate(fraw_str,splite_date,fitem_str,fout_str):
-    cate_dict = utils.init_item_data(fitem_str)
-    ucic = UCIC(fraw_str,splite_date)
-    user_nbrs_dict = ucic.neighbor_user(10)
+    user_data_model = dm.UserHistoryDataModel(fraw_str,splite_date)
+    cate_dict  = dm.CateItemDataModel(fitem_str).cate_dict
+    ucic = UCIC(user_data_model)
+    user_nbrs_dict = ucic.neighbor_user(50)
     fout = open(fout_str,'w')
     i =0
     for user in user_nbrs_dict:
@@ -167,11 +219,58 @@ def candiate_with_user_nbr_cate(fraw_str,splite_date,fitem_str,fout_str):
             candidate_item_set|= cate_dict[cate]
         print >> fout,'%s,%s' %(user,'#'.join(candidate_item_set))
     fout.close()
+def get_candidate_item_in_cate(user_score_dict,nbrs_list,candidate_cate_set,cate_dict):
+    cate_score_dict = __compute_cate_score(user_score_dict,nbrs_list,candidate_cate_set)
+    total_score = sum(cate_score_dict.values)
+    rs_num = 3000
+    candidate_item_set = set()
+    for cate in candidate_cate_set:
+        need_item_num = int(rs_num*cate_score_dict[cate]/total_score)
+        if need_item_num >= len(cate_dict[cate]):
+            candidate_item_set |= cate_dict[cate]
+        else:
+            #对cate 内聚类
+            item_labels_dict = __cluster_item_in_cate(cate)
+            #根据近邻历史行为 计算对各子聚类的喜好度
+            label_score_dict = dict()
+            for item in cate_dict(cate):
+                label = str(item_labels_dict[item])
+                if label  == '-1':
+                    continue
+                label_score_dict.setdefault(label,0)
+                label_score_dict[label] += __compute_item_score(user_score_dict,nbrs_list,item)
+            sorted_label_list = sorted(label_score_dict.items(), key=lambda x: x[1], reverse=True)
+            label_item_dict = user2label(item_labels_dict)
+            #根据由高到低排序的子类依次添加其对应的item 作为候选item
+            for label,val in sorted_label_list:
+                if val == 0:
+                    break
+                candidate_item_set |= label_item_dict[label]
+                if len(candidate_item_set) >= need_item_num:
+                    break
+    return candidate_item_set
+
+    
+def __compute_cate_score(user_score_dict,nbrs_list,candidate_cate_set):
+    cate_score_dict = dict()
+    for cate in candidate_cate_set:
+        cate_score_dict[cate] = 0
+        for nbr in nbrs_list:
+            cate_score_dict[cate] += user_score_dict[nbr].get_cate_score(cate)
+        cate_score_dict /= len(nbrs_list)
+    return cate_score_dict
+
+def __compute_item_score(user_score_dict,nbrs_list,item):
+    item_score = 0
+    for nbr in nbrs_list:
+        item_score += user_score_dict[nbr].get_item_score(item)
+    item_score /= len(nbrs_list)
+    return item_score
             
 def user2label(user_label_dict):
     label_user_dict = dict()
     for user in user_label_dict:
-        label = user_label_dict[user]
+        label = str(user_label_dict[user])
         label_user_dict.setdefault(label,set())
         label_user_dict[label].add(user)
     return label_user_dict
@@ -192,7 +291,7 @@ def main():
     fcandiadate_str = '%s/candidate_user_%s_%s' %(rule_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
     fuser_label_str = '%s/user_label_%s_%s' %(rule_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
     #cluster_user(fraw_str,begin_date,fuser_label_str)
-    #candidate_with_user_cluster(fraw_str,begin_date,fitem_str,fcandiadate_str)
+    #candidate_with_user_cluster(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
     #candidate_with_user_nbr_history(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
     candiate_with_user_nbr_cate(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
     

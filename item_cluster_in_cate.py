@@ -1,8 +1,7 @@
 #-*- coding:utf-8-*
 import sys
-import datetime
-import numpy as np
 import rs_utils as utils
+import data_model as dm
 import os
 from scipy import sparse
 from scipy import io
@@ -11,25 +10,14 @@ from sklearn.cluster import DBSCAN
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import MiniBatchKMeans 
 from sklearn import metrics
-begin_date = datetime.datetime(2014,11,18)
-end_date = datetime.datetime(2014,12,16)
-td = datetime.timedelta(1)
-split_td = datetime.timedelta(6)
-splite_date = end_date - split_td
-data_dir = utils.get_data_dir(utils.FLAG_TRAIN_TEST) 
-rule_dir = utils.get_data_dir(utils.FLAG_RULE)
 class ICIC:
     def __init__(self):
         self.user_score_dict = None
-    def __init_base_data(self,fitem_str,fin_str,splite_date):
-        self.user_score_dict,_,_,self.user_dict = utils.init_base_data(fin_str,splite_date)
-        self.cate_dict = dict()
-        with open(fitem_str) as fin:
-            for line in fin:
-                cols = line.strip().split(',')
-                #item,pos,cate
-                self.cate_dict.setdefault(cols[-1],set())
-                self.cate_dict[cols[-1]].add(cols[0])
+    def init_base_data(self,uh_data_model,ci_data_model):
+        self.user_score_dict= uh_data_model.user_score_dict
+        self.user_dict = uh_data_model.user_ix_dict
+        self.cate_dict = ci_data_model.cate_dict
+        
     def __get_item_dict(self,cate):
         item_list = list(self.cate_dict[cate])
         item_dict = dict()
@@ -55,7 +43,7 @@ class ICIC:
         #io.mmwrite(fout_str,item_feature_matrix)
         return item_feature_matrix,item_dict
         print 'end extract'
-    def __cluster_item(self,cate,fout_str):
+    def cluster_item(self,cate,fout_str):
         item_feature_matrix,item_dict  =self.__extract_item_feature(cate)
         #item_feature_matrix = io.mmread(fitem_feature_str) 
         item_feature_matrix = item_feature_matrix.tocsr()
@@ -74,37 +62,32 @@ class ICIC:
             item_label_dict[item] = labels[item_dict[item]]
         fout.close()
         return item_label_dict
-    def cluster_item_with_cate(self,cate):
-        fitem_label_str = '%s/item_label/item_label_%s_%s_%s' %(rule_dir,cate,begin_date.strftime('%m%d'),end_date.strftime('%m%d'))
-        if os.path.exists(fitem_label_str):
-            print 'cate %s exists' %(cate)
-            item_label_dict = dict()
-            with open(fitem_label_str) as fin:
-                for line in fin:
-                    cols = line.strip().split(',')
-                    item_label_dict[cols[0]]= cols[1]
-            return item_label_dict
-        else:
-            if self.user_score_dict == None:
-                fraw_str = '%s/data_%s_%s' %(data_dir,begin_date.strftime('%m%d'),end_date.strftime('%m%d'))  
-                fitem_str = '%s/item' %(data_dir)
-                self.__init_base_data(fitem_str,fraw_str,begin_date)
+def test_icic():
+    icic = ICIC() 
+    cate = '3064'
+    rule_dir = utils.get_data_dir(utils.FLAG_RULE)
+    fitem_label_str = '%s/item_label/test_item_label_%s_%s_%s' %(rule_dir,cate,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
+    if os.path.exists(fitem_label_str):
+        print 'cate %s exists' %(cate)
+        item_label_dict = dict()
+        with open(fitem_label_str) as fin:
+            for line in fin:
+                cols = line.strip().split(',')
+                item_label_dict[cols[0]]= cols[1]
+        return item_label_dict
+    else:
+        if icic.user_score_dict == None:
+            data_dir = utils.get_data_dir(utils.FLAG_TRAIN_TEST) 
+            fraw_str = '%s/data_%s_%s' %(data_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))  
+            fitem_str = '%s/item' %(data_dir)
+            user_data_model = dm.UserHistoryDataModel(fraw_str,utils.DATE_BEGIN)
+            ci_data_model = dm.CateItemDataModel(fitem_str)
+            icic.init_base_data(user_data_model,ci_data_model)
 
-                
-            return self.__cluster_item(cate,fitem_label_str)
-
-def main():
-    #fraw_str = '%s/data_%s_%s' %(data_dir,splite_date.strftime('%m%d'),end_date.strftime('%m%d'))  
-    fraw_str = '%s/data_%s_%s' %(data_dir,begin_date.strftime('%m%d'),end_date.strftime('%m%d'))  
-    fitem_str = '%s/item' %(data_dir)
-    cate_id = '3064'
-    fitem_feature_str = '%s/item_feature_%s_%s_%s' %(rule_dir,cate_id,begin_date.strftime('%m%d'),end_date.strftime('%m%d'))
-    fitem_label_str = '%s/item_label_%s_%s_%s' %(rule_dir,cate_id,begin_date.strftime('%m%d'),end_date.strftime('%m%d'))
-    #extract_item_feature(cate_id,fitem_str,fraw_str,fitem_feature_str)
-    icic = ICIC()
-    icic.cluster_item_with_cate(cate_id)
+            
+        return icic.cluster_item(cate,fitem_label_str)
 
 
 if __name__ == '__main__':
-    main()
+    test_icic()
 

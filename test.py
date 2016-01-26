@@ -1,5 +1,21 @@
 import numpy as np
 from scipy.sparse import lil_matrix
+class A:
+    def _method_1(self):
+        print 'method_1 A'
+        self._method_2()
+        
+    def _method_2(self):
+#        print 'method_2 A'
+        pass
+class B(A):
+    def method(self):
+        self._method_1()
+    def _method_2(self):
+        print 'method_2 B'
+b = B()
+b.method()
+"""
 a = lil_matrix((3,4))
 a[2,1] = 1
 a[2,3] = 1
@@ -12,6 +28,7 @@ c= np.multiply(a[2,[1,2,3]],b)
 print np.count_nonzero(c)
 print c.size
 print np.sum(c)
+"""
 """
 from sklearn.neighbors import NearestNeighbors
 import sklearn.metrics.pairwise as smp

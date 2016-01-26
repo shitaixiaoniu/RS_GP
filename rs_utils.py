@@ -2,7 +2,6 @@
 import sys
 import os
 import datetime
-import numpy as np
 FLAG_TRAIN_TEST = 'train_test'
 FLAG_AR = 'ar'
 FLAG_CANDIDATE='candidate'
@@ -15,75 +14,6 @@ td = datetime.timedelta(1)
 split_td = datetime.timedelta(6)
 DATE_SPLIT= DATE_END - split_td
 DATE_NEXT = DATE_END+td
-class UserCateAttr:
-    def __init__(self):
-        self.cate_dict = dict()
-        self.item_dict = dict()
-    def update_cate_info(self,cate,item,behavior):
-        self.cate_dict.setdefault(cate,set())
-        self.item_dict.setdefault(item,[0]*4)
-        self.cate_dict[cate].add(item)
-        self.item_dict[item][behavior] +=1
-    def get_cate_score(self,cate):
-        score = 0
-        for item in self.cate_dict[cate]:
-            score += self.get_item_score(item) 
-        return score
-    def get_score(self):
-        score = 0
-        for cate in self.cate_dict:
-            score += self.get_cate_score(cate)
-        return score
-    def get_cate_prob(self,cate):
-        if cate not in self.cate_dict:
-            return 0.0
-        total_score = self.get_score()
-        cate_prob= self.get_cate_score(cate)/float(total_score)
-        return cate_prob 
-    def get_all_cates(self):
-        return self.cate_dict.keys()
-    def get_items_by_cate(self,cate):
-        if cate not in self.cate_dict:
-            return None
-        return self.cate_dict[cate]
-    def get_item_score(self,item):
-        if item not in self.item_dict:
-            return 0
-        behavior = np.array(self.item_dict[item])
-        #behavior 大于5的限定为5
-        #behavior = np.where(behavior>5,5,behavior)
-        weight = np.array([1,2,3,4])
-        score = np.sum(behavior*weight)
-        return score
-def init_base_data(fin_str,splite_date):
-    user_score_dict = dict()
-    user_history_dict= dict()
-    with open(fin_str) as fin:
-        for line in fin:
-            #user,item,be,pos,cate,time
-            cols = line.strip().split(',')
-            user_history_dict.setdefault(cols[0],set())
-            user_history_dict[cols[0]].add(cols[1])
-            cur_date = datetime.datetime.strptime(cols[-1],'%Y-%m-%d %H')
-            if cur_date >= splite_date:
-                user_score_dict.setdefault(cols[0],UserCateAttr())
-                behavior = int(cols[2])-1
-                user_score_dict[cols[0]].update_cate_info(cols[-2],cols[1],behavior)
-    user_list = user_score_dict.keys()
-    user_ix_dict = dict()
-    for ix,user in enumerate(user_list):
-        user_ix_dict[user] = ix
-    return user_score_dict,user_history_dict,user_list,user_ix_dict
-def init_item_data(fitem_str):
-    cate_dict = dict()
-    with open(fitem_str) as fin:
-        for line in fin:
-            #item,pos,cate
-            cols = line.strip().split(',')
-            cate_dict.setdefault(cols[-1],set())
-            cate_dict[cols[-1]].add(cols[0])
-    return cate_dict
-            
 
 def evaluate_res(fres_str,fbuy_str,is_item):
     res_dict = dict()
