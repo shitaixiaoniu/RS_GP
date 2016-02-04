@@ -37,6 +37,7 @@ class UserCateAttr:
         self.item_dict = dict()
         #用户的地理位置,每个位置的[lasttime,total_num]
         self.pos_dict  = dict() 
+        self.score = None
     def update_cate_info(self,cate,item,behavior,time = None,pos = None):
         self.cate_dict.setdefault(cate,set())
         self.item_dict.setdefault(item,[0]*4)
@@ -61,10 +62,14 @@ class UserCateAttr:
             score += self.get_item_score(item) 
         return score
     def get_score(self):
-        score = 0
-        for cate in self.cate_dict:
-            score += self.get_cate_score(cate)
-        return score
+        if self.score is None:
+            score = 0
+            for cate in self.cate_dict:
+                score += self.get_cate_score(cate)
+            self.score = score
+        return self.score
+    def get_score_mean(self):
+        return float(self.get_score())/len(self.cate_dict)
     def get_cate_prob(self,cate):
         if cate not in self.cate_dict:
             return 0.0

@@ -97,7 +97,8 @@ class UCIC:
         """
         #user_feature_matrix = self.__nmf(user_feature_matrix)
         #user_feature_matrix = self.__svd(user_feature_matrix)
-        #user_feature_matrix = self.__remove_mean_by_row(user_feature_matrix)
+        user_feature_matrix = self.__remove_mean_by_row(user_feature_matrix)
+        user_feature_matrix = self.__svd(user_feature_matrix)
         #nbrs = NearestNeighbors(K,n_jobs = -1).fit(user_feature_matrix)
         nbrs = NearestNeighbors(K,n_jobs = -1,algorithm="brute", metric="cosine").fit(user_feature_matrix)
         #distance,indices = nbrs.radius_neighbors(radius = 20)
@@ -105,18 +106,25 @@ class UCIC:
         print distance
         print indices
         user_nbrs_dict = dict()
+        # user nbrs' similarity
+        user_nbrs_similarity_dict = dict()
         for user in self.__user_ix_dict:
             u_ix = self.__user_ix_dict[user]
             nbrs_ix = indices[u_ix]
             nbrs_list = [self.__user_ix_list[i] for i in nbrs_ix]
             user_nbrs_dict[user]= nbrs_list
+            #similariy
+            nbrs_similarity_list =[1-x for x in distance[u_ix]]
+            user_nbrs_similarity_dict[user]= nbrs_similarity_list
+    
         if fout_str is not None:
             fout = open(fout_str,'w')
             for user in user_nbrs_dict:
                 print >> fout,'%s,%s' %(user,'#'.join(user_nbrs_dict[user]))
             fout.close()
-        return user_nbrs_dict
+        return user_nbrs_dict,user_nbrs_similarity_dict
     def __remove_mean_by_row(self,user_feature_matrix):
+        """
         for r_ix in range(user_feature_matrix.shape[0]):
             if user_feature_matrix.getrow(r_ix).nnz == 0:
                 continue
@@ -126,6 +134,9 @@ class UCIC:
                 if user_feature_matrix[r_ix,c_ix] == 0:
                     continue
                 user_feature_matrix[r_ix,c_ix] -= mean_row
+        """
+        user_feature_matrix -= user_feature_matrix.mean(1)  
+        #user_feature_matrix -= user_feature_matrix.mean(1) - user_feature_matrix.mean(0) - user_feature_matrix.mean()
         return user_feature_matrix
     def __compute_bias(self,user_feature_matrix):
         bias_global_val = user_feature_matrix.sum()/(user_feature_matrix != 0).sum()
@@ -143,7 +154,7 @@ class UCIC:
         user_distribution = nmf.fit_transform(user_feature_matrix)
         return user_distribution
     def __svd(self,user_feature_matrix):
-        svd = TruncatedSVD(n_components=50)
+        svd = TruncatedSVD(n_components=10)
         user_distribution = svd.fit_transform(user_feature_matrix)
         return user_distribution
 
@@ -219,53 +230,6 @@ def candiate_with_user_nbr_cate(fraw_str,splite_date,fitem_str,fout_str):
             candidate_item_set|= cate_dict[cate]
         print >> fout,'%s,%s' %(user,'#'.join(candidate_item_set))
     fout.close()
-def get_candidate_item_in_cate(user_score_dict,nbrs_list,candidate_cate_set,cate_dict):
-    cate_score_dict = __compute_cate_score(user_score_dict,nbrs_list,candidate_cate_set)
-    total_score = sum(cate_score_dict.values)
-    rs_num = 3000
-    candidate_item_set = set()
-    for cate in candidate_cate_set:
-        need_item_num = int(rs_num*cate_score_dict[cate]/total_score)
-        if need_item_num >= len(cate_dict[cate]):
-            candidate_item_set |= cate_dict[cate]
-        else:
-            #对cate 内聚类
-            item_labels_dict = __cluster_item_in_cate(cate)
-            #根据近邻历史行为 计算对各子聚类的喜好度
-            label_score_dict = dict()
-            for item in cate_dict(cate):
-                label = str(item_labels_dict[item])
-                if label  == '-1':
-                    continue
-                label_score_dict.setdefault(label,0)
-                label_score_dict[label] += __compute_item_score(user_score_dict,nbrs_list,item)
-            sorted_label_list = sorted(label_score_dict.items(), key=lambda x: x[1], reverse=True)
-            label_item_dict = user2label(item_labels_dict)
-            #根据由高到低排序的子类依次添加其对应的item 作为候选item
-            for label,val in sorted_label_list:
-                if val == 0:
-                    break
-                candidate_item_set |= label_item_dict[label]
-                if len(candidate_item_set) >= need_item_num:
-                    break
-    return candidate_item_set
-
-    
-def __compute_cate_score(user_score_dict,nbrs_list,candidate_cate_set):
-    cate_score_dict = dict()
-    for cate in candidate_cate_set:
-        cate_score_dict[cate] = 0
-        for nbr in nbrs_list:
-            cate_score_dict[cate] += user_score_dict[nbr].get_cate_score(cate)
-        cate_score_dict /= len(nbrs_list)
-    return cate_score_dict
-
-def __compute_item_score(user_score_dict,nbrs_list,item):
-    item_score = 0
-    for nbr in nbrs_list:
-        item_score += user_score_dict[nbr].get_item_score(item)
-    item_score /= len(nbrs_list)
-    return item_score
             
 def user2label(user_label_dict):
     label_user_dict = dict()
@@ -292,8 +256,8 @@ def main():
     fuser_label_str = '%s/user_label_%s_%s' %(rule_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
     #cluster_user(fraw_str,begin_date,fuser_label_str)
     #candidate_with_user_cluster(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
-    #candidate_with_user_nbr_history(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
-    candiate_with_user_nbr_cate(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
+    candidate_with_user_nbr_history(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
+    #candiate_with_user_nbr_cate(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
     
     utils.evaluate_res_except_history(fcandiadate_str,fbuy_str,True,fraw_str)
 if __name__ == '__main__':

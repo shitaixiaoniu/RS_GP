@@ -6,7 +6,7 @@ import data_model as dm
 import datetime
 import numpy as np
 from item_cluster_in_cate import ICIC 
-from user_cluster_in_care import UCIC
+from user_cluster_in_cate import UCIC
 
 
 class BaseCIC:
@@ -25,7 +25,7 @@ class BaseCIC:
         else:
             self.full_user_model = dm.UserHistoryDataModel(fin_str,utils.DATE_BEGIN)
 
-    def __cluster_item_in_cate(self,cate):
+    def _cluster_item_in_cate(self,cate):
         fitem_label_str = '%s/item_label/item_label_%s_%s_%s' %(self.rule_dir,cate,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
         if os.path.exists(fitem_label_str):
             print 'cate %s exists' %(cate)
@@ -43,3 +43,10 @@ class BaseCIC:
                 self.icic.init_base_data(self.full_user_model,self.ci_model)
                 
             return self.icic.cluster_item(cate,fitem_label_str)
+    def change2label(self,user_label_dict):
+        label_user_dict = dict()
+        for user in user_label_dict:
+            label = str(user_label_dict[user])
+            label_user_dict.setdefault(label,set())
+            label_user_dict[label].add(user)
+        return label_user_dict
