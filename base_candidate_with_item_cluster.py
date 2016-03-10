@@ -28,7 +28,7 @@ class BaseCIC:
     def _cluster_item_in_cate(self,cate):
         fitem_label_str = '%s/item_label/item_label_%s_%s_%s' %(self.rule_dir,cate,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
         if os.path.exists(fitem_label_str):
-            print 'cate %s exists' %(cate)
+            #print 'cate %s exists' %(cate)
             item_label_dict = dict()
             with open(fitem_label_str) as fin:
                 for line in fin:

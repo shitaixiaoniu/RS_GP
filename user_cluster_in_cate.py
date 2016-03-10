@@ -13,6 +13,7 @@ from sklearn.cluster import MiniBatchKMeans
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import NMF
 from sklearn.decomposition import TruncatedSVD
+from plsa import pLSA
 class UCIC:
     def __init__(self,uh_data_model):
         self.user_score_dict= uh_data_model.user_score_dict
@@ -99,6 +100,7 @@ class UCIC:
         #user_feature_matrix = self.__svd(user_feature_matrix)
         user_feature_matrix = self.__remove_mean_by_row(user_feature_matrix)
         user_feature_matrix = self.__svd(user_feature_matrix)
+        #user_feature_matrix = self.__plsa(user_feature_matrix)
         #nbrs = NearestNeighbors(K,n_jobs = -1).fit(user_feature_matrix)
         nbrs = NearestNeighbors(K,n_jobs = -1,algorithm="brute", metric="cosine").fit(user_feature_matrix)
         #distance,indices = nbrs.radius_neighbors(radius = 20)
@@ -157,6 +159,13 @@ class UCIC:
         svd = TruncatedSVD(n_components=10)
         user_distribution = svd.fit_transform(user_feature_matrix)
         return user_distribution
+    def __plsa(self,user_feature_matrix):
+        item_user_matrix = user_feature_matrix.transpose()
+        plsa = pLSA()
+        plsa.train(item_user_matrix.todok(),220)
+        topic_user = plsa.document_topics()
+        return topic_user.T
+
 
 
 
@@ -189,7 +198,7 @@ def candidate_with_user_nbr_history(fraw_str,splite_date,fitem_str,fout_str):
     user_data_model = dm.UserHistoryDataModel(fraw_str,splite_date)
     cate_dict  = dm.CateItemDataModel(fitem_str).cate_dict
     ucic = UCIC(user_data_model)
-    user_nbrs_dict = ucic.neighbor_user(500)
+    user_nbrs_dict,_ = ucic.neighbor_user(500)
     fout = open(fout_str,'w')
     user_history_dict = ucic.user_history_dict
     i =0
@@ -212,7 +221,7 @@ def candiate_with_user_nbr_cate(fraw_str,splite_date,fitem_str,fout_str):
     user_data_model = dm.UserHistoryDataModel(fraw_str,splite_date)
     cate_dict  = dm.CateItemDataModel(fitem_str).cate_dict
     ucic = UCIC(user_data_model)
-    user_nbrs_dict = ucic.neighbor_user(50)
+    user_nbrs_dict ,_ = ucic.neighbor_user(50)
     fout = open(fout_str,'w')
     i =0
     for user in user_nbrs_dict:
@@ -252,12 +261,12 @@ def main():
     fraw_str = '%s/data_%s_%s' %(data_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))  
     fitem_str = '%s/item' %(data_dir)
     fbuy_str = '%s/data_buy_%s'%(data_dir,utils.DATE_NEXT.strftime('%m%d'))
-    fcandiadate_str = '%s/candidate_user_%s_%s' %(rule_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
+    fcandiadate_str = '%s/candidate_user_%s_%s' %(rule_dir,utils.DATE_SPLIT.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
     fuser_label_str = '%s/user_label_%s_%s' %(rule_dir,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
     #cluster_user(fraw_str,begin_date,fuser_label_str)
     #candidate_with_user_cluster(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
-    candidate_with_user_nbr_history(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
-    #candiate_with_user_nbr_cate(fraw_str,utils.DATE_BEGIN,fitem_str,fcandiadate_str)
+    #candidate_with_user_nbr_history(fraw_str,utils.DATE_SPLIT,fitem_str,fcandiadate_str)
+    candiate_with_user_nbr_cate(fraw_str,utils.DATE_SPLIT,fitem_str,fcandiadate_str)
     
     utils.evaluate_res_except_history(fcandiadate_str,fbuy_str,True,fraw_str)
 if __name__ == '__main__':

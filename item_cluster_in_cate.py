@@ -68,7 +68,7 @@ def test_icic():
     rule_dir = utils.get_data_dir(utils.FLAG_RULE)
     fitem_label_str = '%s/item_label/test_item_label_%s_%s_%s' %(rule_dir,cate,utils.DATE_BEGIN.strftime('%m%d'),utils.DATE_END.strftime('%m%d'))
     if os.path.exists(fitem_label_str):
-        #print 'cate %s exists' %(cate)
+        print 'cate %s exists' %(cate)
         item_label_dict = dict()
         with open(fitem_label_str) as fin:
             for line in fin:
@@ -83,7 +83,6 @@ def test_icic():
             user_data_model = dm.UserHistoryDataModel(fraw_str,utils.DATE_BEGIN)
             ci_data_model = dm.CateItemDataModel(fitem_str)
             icic.init_base_data(user_data_model,ci_data_model)
-
             
         return icic.cluster_item(cate,fitem_label_str)
 

@@ -80,7 +80,7 @@ class UserCateAttr:
         return self.cate_dict.keys()
     def get_items_by_cate(self,cate):
         if cate not in self.cate_dict:
-            return None
+            return set() 
         return self.cate_dict[cate]
     def get_item_score(self,item):
         if item not in self.item_dict:
